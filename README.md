@@ -8,6 +8,9 @@
 
 ## На что похоже
 
+**ThinkiaBot**:
+- [Ссылка](https://t.me/ThinkiaBot "ThinkiaBot")
+- ![Картинка](https://user-images.githubusercontent.com/116674501/229581404-5133cf0a-c198-48f3-b107-c696a35f01ea.jpg "ThinkiaBot")
 
 ## Системные требования
 
