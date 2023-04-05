@@ -2,6 +2,9 @@ import logging
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
 from telegram import ReplyKeyboardMarkup
 from config import BOT_TOKEN
+import sqlalchemy
+from data import db_session
+from data.participants import Participant
 
 
 logging.basicConfig(
@@ -27,6 +30,13 @@ async def starting(update, context):
         await stop(update, context)
     elif reply.lower() == 'да':
         await update.message.reply_text('здесь начнется викторина')
+        db_sess = db_session.create_session()
+        participant = Participant()
+        participant.name = update.effective_user.first_name + ' ' + update.effective_user.last_name
+        participant.username = update.effective_user.username
+        participant.score = 0
+        db_sess.add(participant)
+        db_sess.commit()
         return 'quiz'
     else:
         await update.message.reply_text('Извините, я вас не понимаю. Мы начинаем квиз?',
@@ -51,6 +61,7 @@ async def stop(update, context):
 
 
 def main():
+    db_session.global_init("rating/rating.db")
     application = Application.builder().token(BOT_TOKEN).build()
 
     conv_handler = ConversationHandler(
