@@ -5,6 +5,8 @@ from config import BOT_TOKEN
 import sqlalchemy
 from data import db_session
 from data.participants import Participant
+from data.questions import Question
+import random
 
 
 logging.basicConfig(
