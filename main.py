@@ -2,6 +2,8 @@ import logging
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from config import BOT_TOKEN
+from data.category import Category
+from data.questions import Question
 import sqlalchemy
 from data import db_session
 from data.participants import Participant
@@ -41,9 +43,9 @@ async def starting(update, context):
         participant.score = 0
         db_sess.add(participant)
         db_sess.commit()
+        await update.message.reply_text('здесь начнется викторина', reply_markup=ReplyKeyboardMarkup([['Хорошо']]))
 
-        await update.message.reply_text('здесь начнется викторина', reply_markup=ReplyKeyboardRemove())
-        return 'quiz'
+        return 'categories'
     else:
         await update.message.reply_text('Извините, я вас не понимаю. Мы начинаем квиз?',
                                         reply_markup=ReplyKeyboardMarkup(['Да', 'Нет'], one_time_keyboard=True))
@@ -51,8 +53,45 @@ async def starting(update, context):
 
 
 async def quiz(update, context):
-    await update.message.reply_text('вопросы викторины')
+    answers = []
+    db_sess = db_session.create_session()
+    category = db_sess.query(Category).filter(Category.title == str(update.message.text)).first()
+
+    if category:
+        questions = db_sess.query(Question).filter(Question.category_id == int(category.id)).all()
+        question = questions[random.randint(0, len(questions) - 1)]
+        for elem in question.other_answers.split(', '):
+            answers.append(elem)
+        answers.append(question.correct_answer)
+        random.shuffle(answers)
+        context.user_data['correct_answer'] = question.correct_answer
+        await update.message.reply_text(f'Вопрос:\n{question.text}\nПожалуйста, выберите один из ответов ниже',
+                                        reply_markup=ReplyKeyboardMarkup([[answers[0], answers[1]],
+                                                                          [answers[2], answers[3]]]))
+        return 'results'
+    else:
+        await update.message.reply_text(f'Я не понимаю вас, выбирите что-нибудь из списка ниже')
+        return 'categories'
+
+
+async def categories(update, context):
+    db_sess = db_session.create_session()
+    categors = [str(x) for x in db_sess.query(Category).all()]
+    db_sess.close()
+    await update.message.reply_text(f'Выберите одну из категорий', reply_markup=ReplyKeyboardMarkup([categors]))
     return 'quiz'
+
+
+async def results(update, context):
+    if update.message.text == context.user_data['correct_answer']:
+        await update.message.reply_text('Вау!!! Вы угадали!!!\nПродолжаем или хочешь уйти?',
+                                        reply_markup=ReplyKeyboardMarkup([['/stop', 'Продолжаем']]))
+        return 'categories'
+    else:
+        await update.messgae.reply_text('К сожалению, вы не угадали... НО! Вы можете продолжить,'
+                                        ' для этого можете написать что угодно!',
+                                        reply_markup=ReplyKeyboardMarkup([['/stop', 'Давайте продолжим']]))
+        return 'categories'
 
 
 async def help_command(update, context):
@@ -76,7 +115,9 @@ def main():
 
         states={
             'starting': [MessageHandler(filters.TEXT & ~filters.COMMAND, starting)],
-            'quiz': [MessageHandler(filters.TEXT & ~filters.COMMAND, quiz)]
+            'quiz': [MessageHandler(filters.TEXT & ~filters.COMMAND, quiz)],
+            'categories': [MessageHandler(filters.TEXT & ~filters.COMMAND, categories)],
+            'results': [MessageHandler(filters.TEXT & ~filters.COMMAND, results)]
         },
 
         # Точка прерывания диалога.
