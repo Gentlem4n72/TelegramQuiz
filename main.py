@@ -29,22 +29,21 @@ async def start(update, context):
 
 async def starting(update, context):
     reply = update.message.text
-
     if reply.lower() == 'нет':
         await stop(update, context)
     elif reply.lower() == 'да':
         db_sess = db_session.create_session()
-        participant = Participant()
-        if update.effective_user.last_name:
-            participant.name = update.effective_user.first_name + ' ' + update.effective_user.last_name
-        else:
-            participant.name = update.effective_user.first_name
-        participant.username = update.effective_user.username
-        participant.score = 0
-        db_sess.add(participant)
-        db_sess.commit()
+        if not db_sess.query(Participant).filter(Participant.username == str(update.effective_user.username)).all():
+            participant = Participant()
+            if update.effective_user.last_name:
+                participant.name = update.effective_user.first_name + ' ' + update.effective_user.last_name
+            else:
+                participant.name = update.effective_user.first_name
+            participant.username = update.effective_user.username
+            participant.score = 0
+            db_sess.add(participant)
+            db_sess.commit()
         await update.message.reply_text('здесь начнется викторина', reply_markup=ReplyKeyboardMarkup([['Хорошо']]))
-
         return 'categories'
     else:
         await update.message.reply_text('Извините, я вас не понимаю. Мы начинаем квиз?',
@@ -88,7 +87,7 @@ async def results(update, context):
                                         reply_markup=ReplyKeyboardMarkup([['/stop', 'Продолжаем']]))
         return 'categories'
     else:
-        await update.messgae.reply_text('К сожалению, вы не угадали... НО! Вы можете продолжить,'
+        await update.message.reply_text('К сожалению, вы не угадали... НО! Вы можете продолжить,'
                                         ' для этого можете написать что угодно!',
                                         reply_markup=ReplyKeyboardMarkup([['/stop', 'Давайте продолжим']]))
         return 'categories'
