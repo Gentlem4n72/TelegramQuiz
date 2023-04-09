@@ -45,7 +45,7 @@ async def starting(update, context):
             else:
                 participant.name = update.effective_user.first_name
             participant.username = update.effective_user.username
-            participant.score = 5
+            participant.score = 0
             db_sess.add(participant)
             db_sess.commit()
         await update.message.reply_text('Устройтесь поудобнее, мы начинаем',
