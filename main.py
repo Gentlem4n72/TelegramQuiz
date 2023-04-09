@@ -64,7 +64,7 @@ async def quiz(update, context):
 
     if not category:
         category = db_sess.query(Category).filter(Category.title == str(update.message.text)).first()
-        # достаем первые вопросов
+        # достаем N вопросов
         questions = db_sess.query(Question).filter(Question.category_id == int(category.id)).all()
         random.shuffle(questions)
         questions = questions[:amount]
