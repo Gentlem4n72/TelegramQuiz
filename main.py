@@ -45,7 +45,7 @@ async def starting(update, context):
             else:
                 participant.name = update.effective_user.first_name
             participant.username = update.effective_user.username
-            participant.score = 0
+            participant.score = 5
             db_sess.add(participant)
             db_sess.commit()
         await update.message.reply_text('Устройтесь поудобнее, мы начинаем',
@@ -116,7 +116,17 @@ async def results(update, context):
 
 async def finish(update, context):
     if update.message.text.lower() == 'рейтинг':
-        await update.message.reply_text('тут будет рейтинг', reply_markup=ReplyKeyboardMarkup([['/stop', 'Заново']]))
+        db_sess = db_session.create_session()
+        result = db_sess.query(Participant).order_by(Participant.score.desc()).all()
+        msg = f'Рейтинг:\n\n' \
+              f'Топ 5:\n'
+        for i in range(5):
+            user = result[i]
+            msg += f'{i + 1}: {user.name} (@{user.username}) - {user.score}\n'
+        msg += '\nВаше место:\n'
+        curr_user = db_sess.query(Participant).filter(Participant.username == update.effective_user.username).first()
+        msg += f'{result.index(curr_user) + 1}:{curr_user.name} (@{curr_user.username}) - {curr_user.score}'
+        await update.message.reply_text(msg, reply_markup=ReplyKeyboardMarkup([['/stop', 'Заново']]))
         return 'to_beginning'
     elif update.message.text.lower() == 'заново':
         await to_beginning(update, context)
