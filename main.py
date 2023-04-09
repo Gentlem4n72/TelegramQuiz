@@ -16,19 +16,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+category = ''
+questions = []
+amount = 10
+again = False
+
 
 async def start(update, context):
     # user = update.effective_user
     reply_keyboard = [['Да', 'Нет']]
     await update.message.reply_html(
         rf"Привет! Я Кот Семён, и сегодня с буду проводить для вас викторину по Мурманской области. Вы готовы?",
-        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
     )
     return 'starting'
 
 
 async def starting(update, context):
-    reply = update.message.text
+    reply = 'да' if again else update.message.text
     if reply.lower() == 'нет':
         await stop(update, context)
     elif reply.lower() == 'да':
@@ -43,54 +48,89 @@ async def starting(update, context):
             participant.score = 0
             db_sess.add(participant)
             db_sess.commit()
-        await update.message.reply_text('здесь начнется викторина', reply_markup=ReplyKeyboardMarkup([['Хорошо']]))
+        await update.message.reply_text('Устройтесь поудобнее, мы начинаем',
+                                        reply_markup=ReplyKeyboardMarkup([['Хорошо']], one_time_keyboard=False))
         return 'categories'
     else:
         await update.message.reply_text('Извините, я вас не понимаю. Мы начинаем квиз?',
-                                        reply_markup=ReplyKeyboardMarkup(['Да', 'Нет'], one_time_keyboard=True))
+                                        reply_markup=ReplyKeyboardMarkup([['Да', 'Нет']], one_time_keyboard=False))
         return 'starting'
 
 
 async def quiz(update, context):
+    global category, questions
     answers = []
     db_sess = db_session.create_session()
-    category = db_sess.query(Category).filter(Category.title == str(update.message.text)).first()
 
-    if category:
+    if not category:
+        category = db_sess.query(Category).filter(Category.title == str(update.message.text)).first()
+        # достаем первые вопросов
         questions = db_sess.query(Question).filter(Question.category_id == int(category.id)).all()
-        question = questions[random.randint(0, len(questions) - 1)]
-        for elem in question.other_answers.split(', '):
-            answers.append(elem)
-        answers.append(question.correct_answer)
-        random.shuffle(answers)
-        context.user_data['correct_answer'] = question.correct_answer
-        await update.message.reply_text(f'Вопрос:\n{question.text}\nПожалуйста, выберите один из ответов ниже',
-                                        reply_markup=ReplyKeyboardMarkup([[answers[0], answers[1]],
-                                                                          [answers[2], answers[3]]]))
-        return 'results'
-    else:
-        await update.message.reply_text(f'Я не понимаю вас, выбирите что-нибудь из списка ниже')
-        return 'categories'
+        random.shuffle(questions)
+        questions = questions[:amount]
+
+    if not questions:
+        await update.message.reply_text(f'Вы ответили на все вопросы!',
+                                        reply_markup=ReplyKeyboardMarkup([['/stop', 'Рейтинг', 'Заново']],
+                                                                         one_time_keyboard=False))
+        return 'finish'
+    question = questions.pop()
+
+    for elem in question.other_answers.split(', '):
+        answers.append(elem)
+    answers.append(question.correct_answer)
+    random.shuffle(answers)
+    context.user_data['correct_answer'] = question.correct_answer
+    await update.message.reply_text(f'Вопрос:\n{question.text}\nПожалуйста, выберите один из ответов ниже',
+                                    reply_markup=ReplyKeyboardMarkup([[answers[0], answers[1]],
+                                                                      [answers[2], answers[3]]],
+                                                                     one_time_keyboard=False))
+    return 'results'
+    # else:
+    #     await update.message.reply_text(f'Я не понимаю вас, выбирите что-нибудь из списка ниже')
+    #     return 'categories'
 
 
 async def categories(update, context):
     db_sess = db_session.create_session()
     categors = [str(x) for x in db_sess.query(Category).all()]
     db_sess.close()
-    await update.message.reply_text(f'Выберите одну из категорий', reply_markup=ReplyKeyboardMarkup([categors]))
+    await update.message.reply_text(f'Выберите одну из категорий',
+                                    reply_markup=ReplyKeyboardMarkup([categors], one_time_keyboard=False))
     return 'quiz'
 
 
 async def results(update, context):
     if update.message.text == context.user_data['correct_answer']:
         await update.message.reply_text('Вау!!! Вы угадали!!!\nПродолжаем или хочешь уйти?',
-                                        reply_markup=ReplyKeyboardMarkup([['/stop', 'Продолжаем']]))
-        return 'categories'
+                                        reply_markup=ReplyKeyboardMarkup([['/stop', 'Продолжаем']],
+                                                                         one_time_keyboard=False))
     else:
-        await update.message.reply_text('К сожалению, вы не угадали... НО! Вы можете продолжить,'
-                                        ' для этого можете написать что угодно!',
-                                        reply_markup=ReplyKeyboardMarkup([['/stop', 'Давайте продолжим']]))
+        await update.message.reply_text(f"К сожалению, вы не угадали... \n"
+                                        f"Правильный ответ: {context.user_data['correct_answer']}\n"
+                                        f"Продолжаем?",
+                                        reply_markup=ReplyKeyboardMarkup([['/stop', 'Давайте продолжим']],
+                                                                         one_time_keyboard=False))
+    return 'quiz'
+
+
+async def finish(update, context):
+    if update.message.text.lower() == 'рейтинг':
+        await update.message.reply_text('тут будет рейтинг', reply_markup=ReplyKeyboardMarkup([['/stop', 'Заново']]))
+        return 'to_beginning'
+    elif update.message.text.lower() == 'заново':
+        await to_beginning(update, context)
         return 'categories'
+
+
+async def to_beginning(update, context):
+    global category, questions, again
+    category = ''
+    questions = []
+    again = True
+
+    await starting(update, context)
+    return 'categories'
 
 
 async def help_command(update, context):
@@ -116,7 +156,9 @@ def main():
             'starting': [MessageHandler(filters.TEXT & ~filters.COMMAND, starting)],
             'quiz': [MessageHandler(filters.TEXT & ~filters.COMMAND, quiz)],
             'categories': [MessageHandler(filters.TEXT & ~filters.COMMAND, categories)],
-            'results': [MessageHandler(filters.TEXT & ~filters.COMMAND, results)]
+            'results': [MessageHandler(filters.TEXT & ~filters.COMMAND, results)],
+            'finish': [MessageHandler(filters.TEXT & ~filters.COMMAND, finish)],
+            'to_beginning': [MessageHandler(filters.TEXT & ~filters.COMMAND, to_beginning)]
         },
 
         # Точка прерывания диалога.
