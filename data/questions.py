@@ -12,6 +12,7 @@ class Question(SqlAlchemyBase):
     text = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     correct_answer = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     other_answers = sqlalchemy.Column(sqlalchemy.String, nullable=True)
+    attachment = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     category_id = sqlalchemy.Column(sqlalchemy.Integer,
                                     sqlalchemy.ForeignKey("categories.id"))
     category = orm.relationship('Category')
