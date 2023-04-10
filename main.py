@@ -16,11 +16,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-category = ''
-questions = []
-amount = 10
-points = 0
-again = False
+AMOUNT = 10
 
 
 async def start(update, context):
@@ -34,7 +30,11 @@ async def start(update, context):
 
 
 async def starting(update, context):
-    reply = 'да' if again else update.message.text
+    context.user_data['category'] = ''
+    context.user_data['questions'] = []
+    context.user_data['again'] = False
+    context.user_data['points'] = 0
+    reply = 'да' if context.user_data['again'] else update.message.text
     if reply.lower() == 'нет':
         await stop(update, context)
     elif reply.lower() == 'да':
@@ -60,26 +60,25 @@ async def starting(update, context):
 
 
 async def quiz(update, context):
-    global category, questions
     answers = []
     db_sess = db_session.create_session()
 
-    if not category:
-        category = db_sess.query(Category).filter(Category.title == str(update.message.text)).first()
+    if not context.user_data['category']:
+        context.user_data['category'] = db_sess.query(Category).filter(Category.title == str(update.message.text)).first().id
         # достаем N вопросов
-        questions = db_sess.query(Question).filter(Question.category_id == int(category.id)).all()
-        random.shuffle(questions)
-        questions = questions[:amount]
+        context.user_data['questions'] = db_sess.query(Question).filter(Question.category_id == int(context.user_data['category'])).all()
+        random.shuffle(context.user_data['questions'])
+        context.user_data['questions'] = context.user_data['questions'][:AMOUNT]
 
-    if not questions:
+    if not context.user_data['questions']:
         await update.message.reply_text(f'Вы ответили на все вопросы!',
                                         reply_markup=ReplyKeyboardMarkup([['/stop', 'Рейтинг', 'Заново']],
                                                                          one_time_keyboard=False))
         db_sess = db_session.create_session()
-        db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += points
+        db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += context.user_data["points"]
         db_sess.commit()
         return 'finish'
-    question = questions.pop()
+    question = context.user_data['questions'].pop()
 
     for elem in question.other_answers.split('; '):
         answers.append(elem)
@@ -106,12 +105,11 @@ async def categories(update, context):
 
 
 async def results(update, context):
-    global points
     if update.message.text == context.user_data['correct_answer']:
         await update.message.reply_text('Вау!!! Вы угадали!!!\nПродолжаем или хочешь уйти?',
                                         reply_markup=ReplyKeyboardMarkup([['/stop', 'Продолжаем']],
                                                                          one_time_keyboard=False))
-        points += 1
+        context.user_data['points'] += 1
     else:
         await update.message.reply_text(f"К сожалению, вы не угадали... \n"
                                         f"Правильный ответ: {context.user_data['correct_answer']}\n"
@@ -122,7 +120,7 @@ async def results(update, context):
 
 
 async def finish(update, context):
-    reset()
+    context.user_data.clear()
     if update.message.text.lower() == 'рейтинг':
         db_sess = db_session.create_session()
         result = db_sess.query(Participant).order_by(Participant.score.desc()).all()
@@ -142,17 +140,8 @@ async def finish(update, context):
 
 
 async def to_beginning(update, context):
-
-    await starting(update, context)
+    await update.message.reply_text('так точно сэр/мэм!')
     return 'categories'
-
-
-def reset():
-    global category, questions, again, points
-    category = ''
-    points = 0
-    questions = []
-    again = True
 
 
 async def help_command(update, context):
@@ -162,6 +151,11 @@ async def help_command(update, context):
 
 
 async def stop(update, context):
+    db_sess = db_session.create_session()
+    db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += \
+    context.user_data["points"]
+    db_sess.commit()
+    context.user_data.clear()
     await update.message.reply_text("Всего доброго!", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
@@ -180,7 +174,7 @@ def main():
             'categories': [MessageHandler(filters.TEXT & ~filters.COMMAND, categories)],
             'results': [MessageHandler(filters.TEXT & ~filters.COMMAND, results)],
             'finish': [MessageHandler(filters.TEXT & ~filters.COMMAND, finish)],
-            'to_beginning': [MessageHandler(filters.TEXT & ~filters.COMMAND, to_beginning)]
+            'to_beginning': [MessageHandler(filters.TEXT & ~filters.COMMAND, to_beginning)],
         },
 
         # Точка прерывания диалога.
