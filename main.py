@@ -9,6 +9,7 @@ from data import db_session
 from data.participants import Participant
 from data.questions import Question
 import random
+import emoji
 
 
 logging.basicConfig(
@@ -23,7 +24,8 @@ async def start(update, context):
     # user = update.effective_user
     reply_keyboard = [['Да', 'Нет']]
     await update.message.reply_html(
-        rf"Привет! Я Кот Семён, и сегодня с буду проводить для вас викторину по Мурманской области. Вы готовы?",
+        f"Привет!{emoji.emojize(':cat:')} \nЯ Кот Семён, и сегодня с буду проводить для вас викторину "
+        f"по Мурманской области. Вы готовы?",
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
     )
     return 'starting'
@@ -50,7 +52,7 @@ async def starting(update, context):
             participant.user_id = update.effective_user.id
             db_sess.add(participant)
             db_sess.commit()
-        await update.message.reply_text('Устройтесь поудобнее, мы начинаем',
+        await update.message.reply_text(f'Устройтесь поудобнее, мы начинаем! {emoji.emojize(":face_with_monocle:")}',
                                         reply_markup=ReplyKeyboardMarkup([['Хорошо']], one_time_keyboard=False))
         return 'categories'
     else:
@@ -71,7 +73,7 @@ async def quiz(update, context):
         context.user_data['questions'] = context.user_data['questions'][:AMOUNT]
 
     if not context.user_data['questions']:
-        await update.message.reply_text(f'Вы ответили на все вопросы!',
+        await update.message.reply_text(f'Вы ответили на все вопросы!' + emoji.emojize(':sparkles:'),
                                         reply_markup=ReplyKeyboardMarkup([['/stop', 'Рейтинг', 'Заново']],
                                                                          one_time_keyboard=False))
         db_sess = db_session.create_session()
@@ -106,12 +108,12 @@ async def categories(update, context):
 
 async def results(update, context):
     if update.message.text == context.user_data['correct_answer']:
-        await update.message.reply_text('Вау!!! Вы угадали!!!\nПродолжаем или хочешь уйти?',
+        await update.message.reply_text(f'Вау!!! Вы угадали!!!{emoji.emojize(":partying_face:")}\nПродолжаем или хочешь уйти?',
                                         reply_markup=ReplyKeyboardMarkup([['/stop', 'Продолжаем']],
                                                                          one_time_keyboard=False))
         context.user_data['points'] += 1
     else:
-        await update.message.reply_text(f"К сожалению, вы не угадали... \n"
+        await update.message.reply_text(f"К сожалению, вы не угадали...{emoji.emojize(':confused_face:')} \n"
                                         f"Правильный ответ: {context.user_data['correct_answer']}\n"
                                         f"Продолжаем?",
                                         reply_markup=ReplyKeyboardMarkup([['/stop', 'Давайте продолжим']],
@@ -156,7 +158,8 @@ async def stop(update, context):
     context.user_data["points"]
     db_sess.commit()
     context.user_data.clear()
-    await update.message.reply_text("Всего доброго!", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("Всего доброго!" + emoji.emojize(':waving_hand:'),
+                                    reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 
