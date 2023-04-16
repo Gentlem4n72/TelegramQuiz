@@ -47,7 +47,7 @@ async def start(update, context):
         f"{'-' * 100}\n"
         f"/game - начну викторину со случайными вопросами из всего списка имеющихся у меня вопросов.\n"
         f"{'-' * 100}\n"
-        f"/categories - начну викторину с вопросами из категорию, которую Вы выберите.\n"
+        f"/categories - начну викторину с вопросами из категории, которую Вы выберите.\n"
         f"{'-' * 100}\n"
         f"/statistic - покажу сколько очков и на каком вы месте среди участников.\n"
         f"{'-' * 100}\n"
@@ -124,7 +124,7 @@ async def results(update, context):
             context.user_data["points"]
         db_sess.commit()
         context.user_data.clear()
-        await update.message.reply_text(f'Вы не угадал', reply_markup=ReplyKeyboardMarkup([['/game',
+        await update.message.reply_text(f'Вы не угадали', reply_markup=ReplyKeyboardMarkup([['/game',
                                                                         '/categories',
                                                                         '/statistic',
                                                                         '/help',
