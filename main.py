@@ -11,7 +11,6 @@ from data.participants import Participant
 from data.questions import Question
 import random
 
-
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
 )
@@ -77,6 +76,7 @@ async def game(update, context):
         'text': str(x.text),
         'corr_answer': str(x.correct_answer),
         'oth_answers': str(x.other_answers),
+        'attachment': str(x.attachment)
     },
                       db_sess.query(Question).all())]
     random.shuffle(questions)
@@ -85,19 +85,21 @@ async def game(update, context):
     while n in context.user_data['used_questions']:
         n = random.randint(0, len(questions))
 
-    context.user_data['cor_answer'] = questions[n]['corr_answer']
-    context.user_data['used_questions'].append(questions[n]['id'])
+    question = [*filter(lambda x: x['id'] == n, questions)][0]
+    context.user_data['cor_answer'] = question['corr_answer']
+    context.user_data['used_questions'].append(question['id'])
 
-    question = questions[n]['text']
-    answers = questions[n]['oth_answers'].split('; ')
-    answers.append(questions[n]['corr_answer'])
+    text = question['text']
+    answers = question['oth_answers'].split('; ')
+    answers.append(question['corr_answer'])
     random.shuffle(answers)
 
-    markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]])
+    markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]], resize_keyboard=True)
 
     await update.message.reply_text(f'Вот ваш вопрос:\n\n'
-                                    f'❓{question}\n\n'
+                                    f'❓{text}\n\n'
                                     f'📚Выберите один из вариантов ответа', reply_markup=markup)
+    await update.message.reply_photo(photo=question['attachment'])
     return 'results'
 
 
@@ -125,10 +127,11 @@ async def results(update, context):
         db_sess.commit()
         context.user_data.clear()
         await update.message.reply_text(f'Вы не угадали', reply_markup=ReplyKeyboardMarkup([['/game',
-                                                                        '/categories',
-                                                                        '/statistic',
-                                                                        '/help',
-                                                                        '/start']], resize_keyboard=True))
+                                                                                             '/categories',
+                                                                                             '/statistic',
+                                                                                             '/help',
+                                                                                             '/start']],
+                                                                                           resize_keyboard=True))
         await stop(update, context)
 
 
@@ -145,10 +148,10 @@ async def fork(update, context):
         db_sess.commit()
         context.user_data.clear()
         await update.message.reply_text(f'ок', reply_markup=ReplyKeyboardMarkup([['/game',
-                                                                                    '/categories',
-                                                                                    '/statistic',
-                                                                                    '/help',
-                                                                                    '/start']],
+                                                                                  '/categories',
+                                                                                  '/statistic',
+                                                                                  '/help',
+                                                                                  '/start']],
                                                                                 resize_keyboard=True))
         await stop(update, context)
 
@@ -173,6 +176,7 @@ async def categories_game(update, context):
         'text': str(x.text),
         'corr_answer': str(x.correct_answer),
         'oth_answers': str(x.other_answers),
+        'attachment': str(x.attachment)
     }, db_sess.query(Question).filter(Question.category_id == int(context.user_data['category'])).all())]
     random.shuffle(questions)
 
@@ -180,19 +184,21 @@ async def categories_game(update, context):
     while n in context.user_data['used_questions']:
         n = random.randint(0, len(questions))
 
-    context.user_data['cor_answer'] = questions[n]['corr_answer']
-    context.user_data['used_questions'].append(questions[n]['id'])
+    question = [*filter(lambda x: x['id'] == n, questions)][0]
+    context.user_data['cor_answer'] = question['corr_answer']
+    context.user_data['used_questions'].append(question['id'])
 
-    question = questions[n]['text']
-    answers = questions[n]['oth_answers'].split('; ')
-    answers.append(questions[n]['corr_answer'])
+    text = question['text']
+    answers = question['oth_answers'].split('; ')
+    answers.append(question['corr_answer'])
     random.shuffle(answers)
 
     markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]], resize_keyboard=True)
 
     await update.message.reply_text(f'Вот ваш вопрос:\n\n'
-                                    f'❓{question}\n\n'
+                                    f'❓{text}\n\n'
                                     f'📚Выберите один из вариантов ответа', reply_markup=markup)
+    await update.message.reply_photo(photo=question['attachment'])
 
     return 'results'
 
@@ -218,11 +224,11 @@ async def cat_fork(update, context):
         db_sess.commit()
         context.user_data.clear()
         await update.message.reply_text(f'Меня это печалит😿', reply_markup=ReplyKeyboardMarkup([['/game',
-                                                                                    '/categories',
-                                                                                    '/statistic',
-                                                                                    '/help',
-                                                                                    '/start']],
-                                                                                resize_keyboard=True))
+                                                                                                  '/categories',
+                                                                                                  '/statistic',
+                                                                                                  '/help',
+                                                                                                  '/start']],
+                                                                                                resize_keyboard=True))
         return 'stop'
 
 
@@ -242,7 +248,7 @@ async def stat(update, context):
 
 async def help_command(update, context):
     await update.message.reply_text("""Викторина про Мурманск.
-    
+
 Команда  /stop  - завершение работы бота.""")
 
 
@@ -271,10 +277,10 @@ def main():
         entry_points=[CommandHandler('categories', categories)],
 
         states={
-                 'categories': [MessageHandler(filters.TEXT & ~filters.COMMAND, categories)],
-                 'categories_game': [MessageHandler(filters.TEXT & ~filters.COMMAND, categories_game)],
-                 'results': [MessageHandler(filters.TEXT & ~filters.COMMAND, results)],
-                 'categories_fork': [MessageHandler(filters.TEXT & ~filters.COMMAND, cat_fork)]
+            'categories': [MessageHandler(filters.TEXT & ~filters.COMMAND, categories)],
+            'categories_game': [MessageHandler(filters.TEXT & ~filters.COMMAND, categories_game)],
+            'results': [MessageHandler(filters.TEXT & ~filters.COMMAND, results)],
+            'categories_fork': [MessageHandler(filters.TEXT & ~filters.COMMAND, cat_fork)]
         },
 
         fallbacks=[CommandHandler('stop', stop)]
