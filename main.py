@@ -90,7 +90,7 @@ async def game(update, context):
     context.user_data['used_questions'].append(question['id'])
 
     text = question['text']
-    answers = question['oth_answers'].split('; ')
+    answers = question['oth_answers'][:-1].split('; ')
     answers.append(question['corr_answer'])
     random.shuffle(answers)
 
@@ -242,14 +242,15 @@ async def stat(update, context):
         msg += f'{i + 1}: {user.name} (@{user.username}) - {user.score}\n'
     msg += '\nВаше место:\n'
     curr_user = db_sess.query(Participant).filter(Participant.user_id == int(update.effective_user.id)).first()
-    msg += f'{result.index(curr_user) + 1}:{curr_user.name} (@{curr_user.username}) - {curr_user.score}'
+    msg += f'{result.index(curr_user) + 1}: {curr_user.name} (@{curr_user.username}) - {curr_user.score}'
     await update.message.reply_text(msg)
 
 
 async def help_command(update, context):
-    await update.message.reply_text("""Викторина про Мурманск.
-
-Команда  /stop  - завершение работы бота.""")
+    await update.message.reply_text("""Вот мои авторы:
+@Gentlem4n_2940 - Александр Десятовский
+@Carkazmic - Артём Ясков
+@i_am_sashaa - Александра Дермелёва""")
 
 
 async def stop(update, context):
