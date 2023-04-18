@@ -107,7 +107,7 @@ async def game(update, context):
         db_sess = db_session.create_session()
         db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += context.user_data['points']
         db_sess.commit()
-        await update.message.reply_text('Желаем вам удачного дня')
+        await update.message.reply_text('Желаем вам удачного дня', reply_markup= ReplyKeyboardMarkup([['/game', '/categories', '/statistic', '/help']], resize_keyboard=True))
         return ConversationHandler.END
 
 
@@ -138,7 +138,7 @@ async def results(update, context):
         except KeyError:
             pass
         context.user_data.clear()
-        await update.message.reply_text('Вы не угадали')
+        await update.message.reply_text('Вы не угадали', reply_markup= ReplyKeyboardMarkup([['/game', '/categories', '/statistic', '/help']], resize_keyboard=True))
         return ConversationHandler.END
 
 
