@@ -58,49 +58,57 @@ async def start(update, context):
 # Начинаем квиз со случайными вопросами
 async def game(update, context):
     # Узнаем новая игра или продолжаем старую
-    try:
-        if not context.user_data['true_answer']:
+    info = update.message.text
+    if info == 'Да, давайте дальше' or info == '/game':
+        try:
+            if not context.user_data['true_answer']:
+                context.user_data['used_questions'] = []
+                context.user_data['category'] = None
+                context.user_data['points'] = 0
+        except KeyError:
             context.user_data['used_questions'] = []
             context.user_data['category'] = None
             context.user_data['points'] = 0
-    except KeyError:
-        context.user_data['used_questions'] = []
-        context.user_data['category'] = None
-        context.user_data['points'] = 0
 
-    # Достаем вопрос, ответы
-    db_sess = db_session.create_session()
+        # Достаем вопрос, ответы
+        db_sess = db_session.create_session()
 
-    questions = [*map(lambda x: {
-        'id': int(x.id),
-        'text': str(x.text),
-        'corr_answer': str(x.correct_answer),
-        'oth_answers': str(x.other_answers),
-        'attachment': str(x.attachment)
-    },
-                      db_sess.query(Question).all())]
-    random.shuffle(questions)
+        questions = [*map(lambda x: {
+            'id': int(x.id),
+            'text': str(x.text),
+            'corr_answer': str(x.correct_answer),
+            'oth_answers': str(x.other_answers),
+            'attachment': str(x.attachment)
+        },
+                          db_sess.query(Question).all())]
+        random.shuffle(questions)
 
-    n = random.randint(0, len(questions))
-    while n in context.user_data['used_questions']:
         n = random.randint(0, len(questions))
+        while n in context.user_data['used_questions']:
+            n = random.randint(0, len(questions))
 
-    question = [*filter(lambda x: x['id'] == n, questions)][0]
-    context.user_data['cor_answer'] = question['corr_answer']
-    context.user_data['used_questions'].append(question['id'])
+        question = [*filter(lambda x: x['id'] == n, questions)][0]
+        context.user_data['cor_answer'] = question['corr_answer']
+        context.user_data['used_questions'].append(question['id'])
 
-    text = question['text']
-    answers = question['oth_answers'][:-1].split('; ')
-    answers.append(question['corr_answer'])
-    random.shuffle(answers)
+        text = question['text']
+        answers = question['oth_answers'][:-1].split('; ')
+        answers.append(question['corr_answer'])
+        random.shuffle(answers)
 
-    markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]], resize_keyboard=True)
+        markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]], resize_keyboard=True)
 
-    await update.message.reply_text(f'Вот ваш вопрос:\n\n'
-                                    f'❓{text}\n\n'
-                                    f'📚Выберите один из вариантов ответа', reply_markup=markup)
-    await update.message.reply_photo(photo=question['attachment'])
-    return 'results'
+        await update.message.reply_text(f'Вот ваш вопрос:\n\n'
+                                        f'❓{text}\n\n'
+                                        f'📚Выберите один из вариантов ответа', reply_markup=markup)
+        await update.message.reply_photo(photo=question['attachment'])
+        return 'results'
+    else:
+        db_sess = db_session.create_session()
+        db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += context.user_data['points']
+        db_sess.commit()
+        await update.message.reply_text('Желаем вам удачного дня')
+        return ConversationHandler.END
 
 
 # Проверка на правильность ответа
@@ -116,30 +124,28 @@ async def results(update, context):
                                         reply_markup=ReplyKeyboardMarkup([['Да, давайте дальше',
                                                                            'Нет, я пожалуй остановлюсь']]))
         if not context.user_data['category']:
-            return 'fork'
+
+            return 'game'
         else:
             return 'categories_fork'
     else:
         # начисляем очки и отключаем conv_handler
-        db_sess = db_session.create_session()
-        db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += \
-            context.user_data["points"]
-        db_sess.commit()
+        try:
+            db_sess = db_session.create_session()
+            if context.user_data['true_answer']:
+                db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += 1
+            db_sess.commit()
+        except KeyError:
+            pass
         context.user_data.clear()
-        await update.message.reply_text(f'Вы не угадали', reply_markup=ReplyKeyboardMarkup([['/game',
-                                                                                             '/categories',
-                                                                                             '/statistic',
-                                                                                             '/help',
-                                                                                             '/start']],
-                                                                                           resize_keyboard=True))
-        await stop(update, context)
+        await update.message.reply_text('Вы не угадали')
+        return ConversationHandler.END
 
 
 async def fork(update, context):
     # Если пользователь захотел еще поиграть заходим сюда:
     if update.message.text == 'Да, давайте дальше':
-        await game(update, context)
-        return 'results'
+        return ''
     else:
         # начисляем очки и отключаем conv_handler:
         db_sess = db_session.create_session()
@@ -147,13 +153,7 @@ async def fork(update, context):
             context.user_data["points"]
         db_sess.commit()
         context.user_data.clear()
-        await update.message.reply_text(f'ок', reply_markup=ReplyKeyboardMarkup([['/game',
-                                                                                  '/categories',
-                                                                                  '/statistic',
-                                                                                  '/help',
-                                                                                  '/start']],
-                                                                                resize_keyboard=True))
-        await stop(update, context)
+        return ConversationHandler.END
 
 
 async def categories_game(update, context):
@@ -214,8 +214,7 @@ async def categories(update, context):
 
 async def cat_fork(update, context):
     if update.message.text == 'Да, давайте дальше':
-        await categories_game(update, context)
-        return 'results'
+        return 'categories_game'
     else:
         # начисляем очки и отключаем conv_handler:
         db_sess = db_session.create_session()
@@ -223,13 +222,7 @@ async def cat_fork(update, context):
             context.user_data["points"]
         db_sess.commit()
         context.user_data.clear()
-        await update.message.reply_text(f'Меня это печалит😿', reply_markup=ReplyKeyboardMarkup([['/game',
-                                                                                                  '/categories',
-                                                                                                  '/statistic',
-                                                                                                  '/help',
-                                                                                                  '/start']],
-                                                                                                resize_keyboard=True))
-        return 'stop'
+        return ConversationHandler.END
 
 
 async def stat(update, context):
@@ -254,6 +247,12 @@ async def help_command(update, context):
 
 
 async def stop(update, context):
+    await update.message.reply_text(reply_markup=ReplyKeyboardMarkup([['/game',
+                                                                                             '/categories',
+                                                                                             '/statistic',
+                                                                                             '/help',
+                                                                                             '/start']],
+                                                                                           resize_keyboard=True))
     return ConversationHandler.END
 
 
