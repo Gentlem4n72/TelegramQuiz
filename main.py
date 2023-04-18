@@ -11,7 +11,6 @@ from data.participants import Participant
 from data.questions import Question
 import random
 
-
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
 )
@@ -47,7 +46,7 @@ async def start(update, context):
         f"{'-' * 100}\n"
         f"/game - начну викторину со случайными вопросами из всего списка имеющихся у меня вопросов.\n"
         f"{'-' * 100}\n"
-        f"/categories - начну викторину с вопросами из категорию, которую Вы выберите.\n"
+        f"/categories - начну викторину с вопросами из категории, которую Вы выберите.\n"
         f"{'-' * 100}\n"
         f"/statistic - покажу сколько очков и на каком вы месте среди участников.\n"
         f"{'-' * 100}\n"
@@ -62,9 +61,11 @@ async def game(update, context):
     try:
         if not context.user_data['true_answer']:
             context.user_data['used_questions'] = []
+            context.user_data['category'] = None
             context.user_data['points'] = 0
     except KeyError:
         context.user_data['used_questions'] = []
+        context.user_data['category'] = None
         context.user_data['points'] = 0
 
     # Достаем вопрос, ответы
@@ -75,6 +76,7 @@ async def game(update, context):
         'text': str(x.text),
         'corr_answer': str(x.correct_answer),
         'oth_answers': str(x.other_answers),
+        'attachment': str(x.attachment)
     },
                       db_sess.query(Question).all())]
     random.shuffle(questions)
@@ -83,19 +85,21 @@ async def game(update, context):
     while n in context.user_data['used_questions']:
         n = random.randint(0, len(questions))
 
-    context.user_data['cor_answer'] = questions[n]['corr_answer']
-    context.user_data['used_questions'].append(questions[n]['id'])
+    question = [*filter(lambda x: x['id'] == n, questions)][0]
+    context.user_data['cor_answer'] = question['corr_answer']
+    context.user_data['used_questions'].append(question['id'])
 
-    question = questions[n]['text']
-    answers = questions[n]['oth_answers'].split('; ')
-    answers.append(questions[n]['corr_answer'])
+    text = question['text']
+    answers = question['oth_answers'][:-1].split('; ')
+    answers.append(question['corr_answer'])
     random.shuffle(answers)
 
-    markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]])
+    markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]], resize_keyboard=True)
 
     await update.message.reply_text(f'Вот ваш вопрос:\n\n'
-                                    f'❓{question}\n\n'
+                                    f'❓{text}\n\n'
                                     f'📚Выберите один из вариантов ответа', reply_markup=markup)
+    await update.message.reply_photo(photo=question['attachment'])
     return 'results'
 
 
@@ -111,8 +115,10 @@ async def results(update, context):
                                         f'вам начислется только 1 балл.',
                                         reply_markup=ReplyKeyboardMarkup([['Да, давайте дальше',
                                                                            'Нет, я пожалуй остановлюсь']]))
-        print(context.user_data['used_questions'])
-        return 'fork'
+        if not context.user_data['category']:
+            return 'fork'
+        else:
+            return 'categories_fork'
     else:
         # начисляем очки и отключаем conv_handler
         db_sess = db_session.create_session()
@@ -120,11 +126,12 @@ async def results(update, context):
             context.user_data["points"]
         db_sess.commit()
         context.user_data.clear()
-        await update.message.reply_text(f'Вы не угадал', reply_markup=ReplyKeyboardMarkup([['/game',
-                                                                        '/categories',
-                                                                        '/statistic',
-                                                                        '/help',
-                                                                        '/start']], resize_keyboard=True))
+        await update.message.reply_text(f'Вы не угадали', reply_markup=ReplyKeyboardMarkup([['/game',
+                                                                                             '/categories',
+                                                                                             '/statistic',
+                                                                                             '/help',
+                                                                                             '/start']],
+                                                                                           resize_keyboard=True))
         await stop(update, context)
 
 
@@ -141,49 +148,59 @@ async def fork(update, context):
         db_sess.commit()
         context.user_data.clear()
         await update.message.reply_text(f'ок', reply_markup=ReplyKeyboardMarkup([['/game',
-                                                                                            '/categories',
-                                                                                            '/statistic',
-                                                                                            '/help',
-                                                                                            '/start']],
-                                                                                          resize_keyboard=True))
+                                                                                  '/categories',
+                                                                                  '/statistic',
+                                                                                  '/help',
+                                                                                  '/start']],
+                                                                                resize_keyboard=True))
         await stop(update, context)
 
 
-# ----------------------------------------------------------------------------------------------------------------------
-async def quiz(update, context):
-    answers = []
+async def categories_game(update, context):
     db_sess = db_session.create_session()
 
-    if not context.user_data['category']:
-        context.user_data['category'] = db_sess.query(Category).filter(Category.title == str(update.message.text)).first().id
-        # достаем N вопросов
-        context.user_data['questions'] = db_sess.query(Question).filter(Question.category_id == int(context.user_data['category'])).all()
-        random.shuffle(context.user_data['questions'])
-        context.user_data['questions'] = context.user_data['questions'][:AMOUNT]
+    try:
+        if not context.user_data['true_answer']:
+            context.user_data['used_questions'] = []
+            context.user_data['category'] = db_sess.query(Category).filter(
+                Category.title == str(update.message.text)).first().id
+            context.user_data['points'] = 0
+    except KeyError:
+        context.user_data['used_questions'] = []
+        context.user_data['category'] = db_sess.query(Category).filter(
+            Category.title == str(update.message.text)).first().id
+        context.user_data['points'] = 0
 
-    if not context.user_data['questions']:
-        await update.message.reply_text(f'Вы ответили на все вопросы!',
-                                        reply_markup=ReplyKeyboardMarkup([['/stop', 'Рейтинг', 'Заново']],
-                                                                         one_time_keyboard=False), quote=False)
-        db_sess = db_session.create_session()
-        db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += context.user_data["points"]
-        db_sess.commit()
-        return 'finish'
-    question = context.user_data['questions'].pop()
+    questions = [*map(lambda x: {
+        'id': int(x.id),
+        'text': str(x.text),
+        'corr_answer': str(x.correct_answer),
+        'oth_answers': str(x.other_answers),
+        'attachment': str(x.attachment)
+    }, db_sess.query(Question).filter(Question.category_id == int(context.user_data['category'])).all())]
+    random.shuffle(questions)
 
-    for elem in question.other_answers.split('; '):
-        answers.append(elem)
-    answers.append(question.correct_answer)
+    n = random.randint(0, len(questions))
+    while n in context.user_data['used_questions']:
+        n = random.randint(0, len(questions))
+
+    question = [*filter(lambda x: x['id'] == n, questions)][0]
+    context.user_data['cor_answer'] = question['corr_answer']
+    context.user_data['used_questions'].append(question['id'])
+
+    text = question['text']
+    answers = question['oth_answers'].split('; ')
+    answers.append(question['corr_answer'])
     random.shuffle(answers)
-    context.user_data['correct_answer'] = question.correct_answer
-    await update.message.reply_text(f'Вопрос:\n{question.text}\nПожалуйста, выберите один из ответов ниже',
-                                    reply_markup=ReplyKeyboardMarkup([[answers[0], answers[1]],
-                                                                      [answers[2], answers[3]]],
-                                                                     one_time_keyboard=False), quote=False)
+
+    markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]], resize_keyboard=True)
+
+    await update.message.reply_text(f'Вот ваш вопрос:\n\n'
+                                    f'❓{text}\n\n'
+                                    f'📚Выберите один из вариантов ответа', reply_markup=markup)
+    await update.message.reply_photo(photo=question['attachment'])
+
     return 'results'
-    # else:
-    #     await update.message.reply_text(f'Я не понимаю вас, выбирите что-нибудь из списка ниже')
-    #     return 'categories'
 
 
 async def categories(update, context):
@@ -192,29 +209,29 @@ async def categories(update, context):
     db_sess.close()
     await update.message.reply_text(f'Выберите одну из категорий',
                                     reply_markup=ReplyKeyboardMarkup([categors], one_time_keyboard=False), quote=False)
-    return 'quiz'
+    return 'categories_game'
 
 
-async def finish(update, context):
-    context.user_data.clear()
-    if update.message.text.lower() == 'рейтинг':
+async def cat_fork(update, context):
+    if update.message.text == 'Да, давайте дальше':
+        await categories_game(update, context)
+        return 'results'
+    else:
+        # начисляем очки и отключаем conv_handler:
         db_sess = db_session.create_session()
-        result = db_sess.query(Participant).order_by(Participant.score.desc()).all()
-        msg = f'Рейтинг:\n\n' \
-              f'Топ 5:\n'
-        for i in range(5):
-            user = result[i]
-            msg += f'{i + 1}: {user.name} (@{user.username}) - {user.score}\n'
-        msg += '\nВаше место:\n'
-        curr_user = db_sess.query(Participant).filter(Participant.user_id == int(update.effective_user.id)).first()
-        msg += f'{result.index(curr_user) + 1}:{curr_user.name} (@{curr_user.username}) - {curr_user.score}'
-        await update.message.reply_text(msg, reply_markup=ReplyKeyboardMarkup([['/stop', 'Заново']]))
-        return 'to_beginning'
-    elif update.message.text.lower() == 'заново':
-        return 'categories'
+        db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += \
+            context.user_data["points"]
+        db_sess.commit()
+        context.user_data.clear()
+        await update.message.reply_text(f'Меня это печалит😿', reply_markup=ReplyKeyboardMarkup([['/game',
+                                                                                                  '/categories',
+                                                                                                  '/statistic',
+                                                                                                  '/help',
+                                                                                                  '/start']],
+                                                                                                resize_keyboard=True))
+        return 'stop'
 
 
-# ----------------------------------------------------------------------------------------------------------------------
 async def stat(update, context):
     db_sess = db_session.create_session()
     result = db_sess.query(Participant).order_by(Participant.score.desc()).all()
@@ -225,14 +242,15 @@ async def stat(update, context):
         msg += f'{i + 1}: {user.name} (@{user.username}) - {user.score}\n'
     msg += '\nВаше место:\n'
     curr_user = db_sess.query(Participant).filter(Participant.user_id == int(update.effective_user.id)).first()
-    msg += f'{result.index(curr_user) + 1}:{curr_user.name} (@{curr_user.username}) - {curr_user.score}'
+    msg += f'{result.index(curr_user) + 1}: {curr_user.name} (@{curr_user.username}) - {curr_user.score}'
     await update.message.reply_text(msg)
 
 
 async def help_command(update, context):
-    await update.message.reply_text("""Викторина про Мурманск.
-    
-Команда  /stop  - завершение работы бота.""")
+    await update.message.reply_text("""Вот мои авторы:
+@Gentlem4n_2940 - Александр Десятовский
+@Carkazmic - Артём Ясков
+@i_am_sashaa - Александра Дермелёва""")
 
 
 async def stop(update, context):
@@ -256,6 +274,20 @@ def main():
         fallbacks=[CommandHandler('stop', stop)]
     )
 
+    categories_game_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('categories', categories)],
+
+        states={
+            'categories': [MessageHandler(filters.TEXT & ~filters.COMMAND, categories)],
+            'categories_game': [MessageHandler(filters.TEXT & ~filters.COMMAND, categories_game)],
+            'results': [MessageHandler(filters.TEXT & ~filters.COMMAND, results)],
+            'categories_fork': [MessageHandler(filters.TEXT & ~filters.COMMAND, cat_fork)]
+        },
+
+        fallbacks=[CommandHandler('stop', stop)]
+    )
+
+    application.add_handler(categories_game_conv_handler)
     application.add_handler(normal_game_conv_handler)
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler("help", help_command))
