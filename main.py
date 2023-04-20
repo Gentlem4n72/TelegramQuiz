@@ -110,7 +110,7 @@ async def game(update, context):
 
             map_params = {
                 "ll": question['attachment'],
-                "l": 'sat,skl',
+                "l": 'sat',
                 'pt': f'{question["attachment"]},pm2ywm',
                 'z': 16
             }
@@ -206,7 +206,7 @@ async def categories_game(update, context):
         context.user_data['used_questions'].append(question['id'])
 
         text = question['text']
-        answers = question['oth_answers'].split('; ')
+        answers = question['oth_answers'][:-1].split('; ')
         answers.append(question['corr_answer'])
         random.shuffle(answers)
 
@@ -218,7 +218,7 @@ async def categories_game(update, context):
 
             map_params = {
                 "ll": question['attachment'],
-                "l": 'sat,skl',
+                "l": 'sat',
                 'pt': f'{question["attachment"]},pm2ywm',
                 'z': 16
             }
