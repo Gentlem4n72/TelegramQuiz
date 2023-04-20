@@ -1,12 +1,10 @@
 import logging
 
 import requests
-import telegram
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from config import BOT_TOKEN, API_KEY
 from data.category import Category
-from data.questions import Question
 from data import db_session
 from data.participants import Participant
 from data.questions import Question
