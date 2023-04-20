@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css"
+          integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1"
+          crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='css/form.css')}}">
+    <title>{{title}}</title>
+</head>
+<body>
+    <h1 align="center" >Форма для ваших вопросов</h1>
+    <br>
+        <div>
+            <form class="login_form" method="post">
+                <label id="l1">Введите свой telegram-username (обязательно):</label>
+                <input type="text" class="form-control" id="username" placeholder="@username" maxlength="33" name="username">
+                <br>
+                <label>Введите свой вопрос (обязательно):</label>
+                <input type="text" class="form-control" id="question" placeholder="Вопрос? (256 символов)" maxlength="256" name="question">
+                <br>
+                <label>Введите правильный ответ на ваш вопрос (обязательно):</label>
+                <input type="text" class="form-control" id="correct_answer" placeholder="Правильный ответ (256 символов)" maxlength="256" name="correct_answer">
+                <br>
+                <label>(1)Введите неправильный ответ на ваш вопрос (необязательно)</label>
+                <input type="text" class="form-control" id="incorrect_answer1" placeholder="Первый неправильный ответ (256 символов)" maxlength="256" name="incorrect_answer1">
+                <br>
+                <label>(2)Введите неправильный ответ на ваш вопрос (необязательно)</label>
+                <input type="text" class="form-control" id="incorrect_answer2" placeholder="Второй неправильный ответ (256 символов)" maxlength="256" name="incorrect_answer2">
+                <br>
+                <label>(3)Введите неправильный ответ на ваш вопрос (необязательно)</label>
+                <input type="text" class="form-control" id="incorrect_answer3" placeholder="Третий неправильный ответ (256 символов)" maxlength="256" name="incorrect_answer3">
+                <br>
+                <button type="submit" class="btn btn-primary">Отправить</button>
+            </form>
+        </div>
+</body>
+</html>
