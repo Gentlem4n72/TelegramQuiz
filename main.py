@@ -144,7 +144,7 @@ async def results(update, context):
                                         f'и суммарно вы можете заработать больше очков, но в случае неверного ответа '
                                         f'вам начислется только 1 балл.',
                                         reply_markup=ReplyKeyboardMarkup([['Да, давайте дальше',
-                                                                           'Нет, я пожалуй остановлюсь']]))
+                                                                           'Нет, я, пожалуй, остановлюсь']]))
         if not context.user_data['category']:
 
             return 'game'
