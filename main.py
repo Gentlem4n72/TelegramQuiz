@@ -1,9 +1,10 @@
 import logging
 
+import requests
 import telegram
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
-from config import BOT_TOKEN
+from config import BOT_TOKEN, API_KEY
 from data.category import Category
 from data.questions import Question
 from data import db_session
@@ -16,6 +17,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 AMOUNT = 10
+Y_GEOCODER_SERVER = 'http://geocode-maps.yandex.ru/1.x/'
+Y_MAPS_SERVER = 'http://static-maps.yandex.ru/1.x/'
 
 
 # В этой функции мы здороваемся с пользователем и предоставляем ему некоторую информацию о командах бота:
@@ -79,15 +82,18 @@ async def game(update, context):
             'corr_answer': str(x.correct_answer),
             'oth_answers': str(x.other_answers),
             'attachment': str(x.attachment)
-        },
-                          db_sess.query(Question).all())]
-        random.shuffle(questions)
+        }, db_sess.query(Question).filter(Question.id.notin_(context.user_data['used_questions'])).all())]
+        try:
+            question = random.choice(questions)
+        except IndexError:
+            await update.message.reply_text('Вопросы закончились.', reply_markup=ReplyKeyboardMarkup(
+                [['/game', '/categories', '/statistic', '/help']]))
+            if not context.user_data['category']:
 
-        n = random.randint(0, len(questions))
-        while n in context.user_data['used_questions']:
-            n = random.randint(0, len(questions))
+                return 'game'
+            else:
+                return 'categories_game'
 
-        question = [*filter(lambda x: x['id'] == n, questions)][0]
         context.user_data['cor_answer'] = question['corr_answer']
         context.user_data['used_questions'].append(question['id'])
 
@@ -98,17 +104,32 @@ async def game(update, context):
 
         markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]], resize_keyboard=True)
 
-        await update.message.reply_text(f'Вот ваш вопрос:\n\n'
-                                        f'❓{text}\n\n'
-                                        f'📚Выберите один из вариантов ответа', reply_markup=markup)
-        await update.message.reply_photo(photo=question['attachment'])
+        if question['attachment'].startswith('data'):
+            photo = question['attachment']
+        else:
+
+            map_params = {
+                "ll": question['attachment'],
+                "l": 'sat,skl',
+                'pt': f'{question["attachment"]},pm2ywm',
+                'z': 16
+            }
+            response = requests.get(Y_MAPS_SERVER, params=map_params)
+            photo = response.content
+        await update.message.reply_photo(caption=f'Вот ваш вопрос:\n\n'
+                                                 f'❓{text}\n\n'
+                                                 f'📚Выберите один из вариантов ответа',
+                                         reply_markup=markup,
+                                         photo=photo)
         return 'results'
     else:
         db_sess = db_session.create_session()
-        db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += context.user_data['points']
+        db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += \
+            context.user_data['points']
         db_sess.commit()
         context.user_data.clear()
-        await update.message.reply_text('Желаем вам удачного дня', reply_markup= ReplyKeyboardMarkup([['/game', '/categories', '/statistic', '/help']], resize_keyboard=True))
+        await update.message.reply_text('Желаем вам удачного дня', reply_markup=ReplyKeyboardMarkup(
+            [['/game', '/categories', '/statistic', '/help']], resize_keyboard=True))
         return ConversationHandler.END
 
 
@@ -134,12 +155,14 @@ async def results(update, context):
         try:
             db_sess = db_session.create_session()
             if context.user_data['true_answer']:
-                db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += 1
+                db_sess.query(Participant).filter(
+                    Participant.user_id == str(update.effective_user.id)).first().score += 1
             db_sess.commit()
         except KeyError:
             pass
         context.user_data.clear()
-        await update.message.reply_text('Вы не угадали', reply_markup= ReplyKeyboardMarkup([['/game', '/categories', '/statistic', '/help']], resize_keyboard=True))
+        await update.message.reply_text('Вы не угадали', reply_markup=ReplyKeyboardMarkup(
+            [['/game', '/categories', '/statistic', '/help']], resize_keyboard=True))
         return ConversationHandler.END
 
 
@@ -166,17 +189,21 @@ async def categories_game(update, context):
             'corr_answer': str(x.correct_answer),
             'oth_answers': str(x.other_answers),
             'attachment': str(x.attachment)
-        }, db_sess.query(Question).filter(Question.category_id == int(context.user_data['category'])).all())]
-        random.shuffle(questions)
+        }, db_sess.query(Question).filter(Question.category_id == int(context.user_data['category']),
+                                          Question.id.notin_(context.user_data['used_questions'])).all())]
+        try:
+            question = random.choice(questions)
+        except IndexError:
+            await update.message.reply_text('Вопросы закончились.', reply_markup=ReplyKeyboardMarkup(
+                [['/game', '/categories', '/statistic', '/help']]))
+            if not context.user_data['category']:
 
-        n = random.randint(0, len(questions))
+                return 'game'
+            else:
+                return 'categories_game'
 
-        while n in context.user_data['used_questions']:
-            n = random.randint(0, len(questions))
-
-        question = questions[n]
         context.user_data['cor_answer'] = question['corr_answer']
-        context.user_data['used_questions'].append(n)
+        context.user_data['used_questions'].append(question['id'])
 
         text = question['text']
         answers = question['oth_answers'].split('; ')
@@ -185,18 +212,30 @@ async def categories_game(update, context):
 
         markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]], resize_keyboard=True)
 
-        await update.message.reply_text(f'Вот ваш вопрос:\n\n'
-                                        f'❓{text}\n\n'
-                                        f'📚Выберите один из вариантов ответа', reply_markup=markup)
-        await update.message.reply_photo(photo=question['attachment'])
+        if question['attachment'].startswith('data'):
+            photo = question['attachment']
+        else:
 
+            map_params = {
+                "ll": question['attachment'],
+                "l": 'sat,skl',
+                'pt': f'{question["attachment"]},pm2ywm',
+                'z': 16
+            }
+            response = requests.get(Y_MAPS_SERVER, params=map_params)
+            photo = response.content
+        await update.message.reply_photo(caption=f'Вот ваш вопрос:\n\n'
+                                                 f'❓{text}\n\n'
+                                                 f'📚Выберите один из вариантов ответа',
+                                         reply_markup=markup,
+                                         photo=photo)
         return 'results'
     else:
         try:
             db_sess = db_session.create_session()
             if context.user_data['true_answer']:
                 db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += \
-            context.user_data['points']
+                    context.user_data['points']
             db_sess.commit()
         except KeyError:
             pass
@@ -211,7 +250,8 @@ async def categories(update, context):
     context.user_data['categors'] = [str(x) for x in db_sess.query(Category).all()]
     db_sess.close()
     await update.message.reply_text(f'Выберите одну из категорий',
-                                    reply_markup=ReplyKeyboardMarkup([context.user_data['categors']], one_time_keyboard=False), quote=False)
+                                    reply_markup=ReplyKeyboardMarkup([context.user_data['categors']],
+                                                                     one_time_keyboard=False), quote=False)
     return 'categories_game'
 
 
@@ -251,11 +291,11 @@ async def help_command(update, context):
 
 async def stop(update, context):
     await update.message.reply_text(reply_markup=ReplyKeyboardMarkup([['/game',
-                                                                                             '/categories',
-                                                                                             '/statistic',
-                                                                                             '/help',
-                                                                                             '/start']],
-                                                                                           resize_keyboard=True))
+                                                                       '/categories',
+                                                                       '/statistic',
+                                                                       '/help',
+                                                                       '/start']],
+                                                                     resize_keyboard=True))
     return ConversationHandler.END
 
 
