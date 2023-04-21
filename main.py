@@ -249,7 +249,9 @@ async def categories(update, context):
     context.user_data['categors'] = [str(x) for x in db_sess.query(Category).all()]
     db_sess.close()
     await update.message.reply_text(f'Выберите одну из категорий',
-                                    reply_markup=ReplyKeyboardMarkup([context.user_data['categors']],
+                                    reply_markup=ReplyKeyboardMarkup([context.user_data['categors'][0:2],
+                                                                      context.user_data['categors'][2:4],
+                                                                      [context.user_data['categors'][-1]]],
                                                                      one_time_keyboard=False), quote=False)
     return 'categories_game'
 

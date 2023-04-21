@@ -16,7 +16,7 @@ def db_mod():
         db_sess = db_session.create_session()
         new_quest = Form()
         if not request.form['question'] or not request.form['username'] or not request.form['correct_answer']:
-            return flask.render_template('db_edition_from.html', title='заполните все джанные')
+            return flask.render_template('db_edition_from.html', title='заполните все данные')
         new_quest.question = request.form['question']
         new_quest.username = request.form['username']
         new_quest.correct_answer = request.form['correct_answer']
