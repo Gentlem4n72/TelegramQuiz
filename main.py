@@ -40,7 +40,7 @@ async def start(update, context):
         db_sess.commit()
         db_sess.close()
 
-    reply_keyboard = ReplyKeyboardMarkup([['/game', '/categories', '/statistic', '/help']], resize_keyboard=True)
+    reply_keyboard = ReplyKeyboardMarkup([['/game', '/categories', '/statistic', '/help', '/add']], resize_keyboard=True)
     await update.message.reply_text(
         f"Привет, {update.effective_user.first_name}! Я Кот Семён 😺, и сегодня я буду проводить для вас викторину по Мурманской области.\n\n\n"
         f"Вот краткий экскурс по тому, что я умею:\n\n"
@@ -52,7 +52,9 @@ async def start(update, context):
         f"{'-' * 100}\n"
         f"/statistic - покажу сколько очков и на каком вы месте среди участников.\n"
         f"{'-' * 100}\n"
-        f"/help - выведу логины тех, кто меня создал, если что-то пойдет не так, пишите им:",
+        f"/help - выведу логины тех, кто меня создал, если что-то пойдет не так, пишите им.\n"
+        f"{'-' * 100}\n"
+        f"/add - если у вас появится идея для вопроса, вы можете заполнить форму, наши модераторы ее проверят и добавят ваш вопрос.",
         reply_markup=reply_keyboard
     )
 
@@ -295,6 +297,10 @@ async def help_command(update, context):
 @i_am_sashaa - Александра Дермелёва""")
 
 
+async def add(update, context):
+    await update.message.reply_text(f'123')
+
+
 async def stop(update, context):
     await update.message.reply_text(reply_markup=ReplyKeyboardMarkup([['/game',
                                                                        '/categories',
@@ -336,6 +342,7 @@ def main():
 
     application.add_handler(categories_game_conv_handler)
     application.add_handler(normal_game_conv_handler)
+    application.add_handler(CommandHandler('add', add))
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler('statistic', stat))
