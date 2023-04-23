@@ -85,8 +85,9 @@ async def game(update, context):
         try:
             question = random.choice(questions)
         except IndexError:
-            await update.message.reply_text('Вопросы закончились.', reply_markup=ReplyKeyboardMarkup(
-                [['/game', '/categories', '/statistic', '/help']]))
+            await update.message.reply_text('У меня закончились вопросы, спасибо за игру!',
+                                            reply_markup=ReplyKeyboardMarkup(
+                                                [['/game', '/categories', '/statistic', '/help']]))
             if not context.user_data['category']:
 
                 return 'game'
@@ -127,19 +128,20 @@ async def game(update, context):
             context.user_data['points']
         db_sess.commit()
         context.user_data.clear()
-        await update.message.reply_text('Желаем вам удачного дня', reply_markup=ReplyKeyboardMarkup(
+        await update.message.reply_text('Желаю вам удачного дня, возвращайтесь еще!', reply_markup=ReplyKeyboardMarkup(
             [['/game', '/categories', '/statistic', '/help']], resize_keyboard=True))
         return ConversationHandler.END
 
 
 # Проверка на правильность ответа
 async def results(update, context):
-    if update.message.text == context.user_data['cor_answer']:
+    cor_answer = context.user_data['cor_answer']
+    if update.message.text == cor_answer:
         context.user_data['true_answer'] = True
         context.user_data['points'] += context.user_data['points'] + 1
-        await update.message.reply_text(f'Вау вы угадали!!!!\n\n'
+        await update.message.reply_text(f'Вы ответили правильно!\n\n'
                                         f'Вы заработали уже {context.user_data["points"]} очков!\n\n'
-                                        f'Мы можем продолжить нашу викторину '
+                                        f'Мы можем продолжить нашу викторину, '
                                         f'и суммарно вы можете заработать больше очков, но в случае неверного ответа '
                                         f'вам начислется только 1 балл.',
                                         reply_markup=ReplyKeyboardMarkup([['Да, давайте дальше',
@@ -160,8 +162,10 @@ async def results(update, context):
         except KeyError:
             pass
         context.user_data.clear()
-        await update.message.reply_text('Вы не угадали', reply_markup=ReplyKeyboardMarkup(
-            [['/game', '/categories', '/statistic', '/help']], resize_keyboard=True))
+        await update.message.reply_text(f'К сожалению, вы не угадали.\n\n'
+                                        f'Правильный ответ: {cor_answer}',
+                                        reply_markup=ReplyKeyboardMarkup(
+                                            [['/game', '/categories', '/statistic', '/help']], resize_keyboard=True))
         return ConversationHandler.END
 
 
@@ -193,8 +197,9 @@ async def categories_game(update, context):
         try:
             question = random.choice(questions)
         except IndexError:
-            await update.message.reply_text('Вопросы закончились.', reply_markup=ReplyKeyboardMarkup(
-                [['/game', '/categories', '/statistic', '/help']]))
+            await update.message.reply_text('У меня закончились вопросы, спасибо за игру!',
+                                            reply_markup=ReplyKeyboardMarkup(
+                                                [['/game', '/categories', '/statistic', '/help']]))
             if not context.user_data['category']:
 
                 return 'game'
