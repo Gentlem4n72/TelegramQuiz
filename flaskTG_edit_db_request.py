@@ -10,13 +10,23 @@ app = Flask(__name__)
 
 @app.route('/db_mod', methods=['GET', 'POST'])
 def db_mod():
+    quest = False
+    username = False
+    cor_answer = False
     if request.method == 'GET':
         return flask.render_template('db_edition_from.html', title='Ваши вопросы')
     elif request.method == 'POST':
         db_sess = db_session.create_session()
         new_quest = Form()
-        if not request.form['question'] or not request.form['username'] or not request.form['correct_answer']:
-            return flask.render_template('db_edition_from.html', title='заполните все данные')
+        if not request.form['question']:
+            quest = True
+        if not request.form['username']:
+            username = True
+        if not request.form['correct_answer']:
+            cor_answer = True
+        if quest or username or cor_answer:
+            return flask.render_template('db_edition_from.html', title='Ошибка!', question=quest,
+                                         username=username, cor_answer=cor_answer)
         new_quest.question = request.form['question']
         new_quest.username = request.form['username']
         new_quest.correct_answer = request.form['correct_answer']
@@ -25,7 +35,7 @@ def db_mod():
         new_quest.other_answer3 = request.form['incorrect_answer3']
         db_sess.add(new_quest)
         db_sess.commit()
-        return 'Спасибо'
+        return flask.render_template('thnx.html')
 
 
 if __name__ == '__main__':

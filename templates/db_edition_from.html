@@ -17,12 +17,21 @@
             <form class="login_form" method="post">
                 <label id="l1">Введите свой telegram-username (обязательно):</label>
                 <input type="text" class="form-control" id="username" placeholder="@username" maxlength="33" name="username">
+                {%if username %}
+                    <div >обязательное поле </div>
+                {%endif%}
                 <br>
                 <label>Введите свой вопрос (обязательно):</label>
                 <input type="text" class="form-control" id="question" placeholder="Вопрос? (256 символов)" maxlength="256" name="question">
+                {%if question %}
+                    <div>обязательное поле </div>
+                {%endif%}
                 <br>
                 <label>Введите правильный ответ на ваш вопрос (обязательно):</label>
                 <input type="text" class="form-control" id="correct_answer" placeholder="Правильный ответ (256 символов)" maxlength="256" name="correct_answer">
+                {%if cor_answer %}
+                    <div>обязательное поле</div>
+                {%endif%}
                 <br>
                 <label>(1)Введите неправильный ответ на ваш вопрос (необязательно)</label>
                 <input type="text" class="form-control" id="incorrect_answer1" placeholder="Первый неправильный ответ (256 символов)" maxlength="256" name="incorrect_answer1">
