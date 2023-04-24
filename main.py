@@ -306,7 +306,9 @@ async def help_command(update, context):
 
 # добавление вопроса
 async def add(update, context):
-    await update.message.reply_text(f'123')
+    await update.message.reply_text(f'Вот ссылка на форму для добавления вопросов: '
+                                    f'http://aleksandra.pythonanywhere.com/db_mod \n\n'
+                                    f'Если предложенный вами вопрос пройдет модерацию, то он вскоре появится в викторине')
 
 
 # завершение работы бота

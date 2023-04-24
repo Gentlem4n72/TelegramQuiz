@@ -5,7 +5,10 @@ from flask import Flask
 from data import db_session
 from data.form import Form
 
+import os
+
 app = Flask(__name__)
+db_session.global_init("rating/rating.db")
 
 
 # форма добавления вопроса
@@ -31,14 +34,17 @@ def db_mod():
         new_quest.question = request.form['question']
         new_quest.username = request.form['username']
         new_quest.correct_answer = request.form['correct_answer']
-        new_quest.other_answer1 = request.form['incorrect_answer1']
-        new_quest.other_answer2 = request.form['incorrect_answer2']
-        new_quest.other_answer3 = request.form['incorrect_answer3']
+        new_quest.other_answers1 = request.form['incorrect_answer1']
+        new_quest.other_answers2 = request.form['incorrect_answer2']
+        new_quest.other_answers3 = request.form['incorrect_answer3']
         db_sess.add(new_quest)
         db_sess.commit()
         return flask.render_template('thnx.html')
 
 
 if __name__ == '__main__':
-    db_session.global_init("rating/rating.db")
-    app.run(port=8080, host='127.0.0.1')
+    # db_session.global_init("rating/rating.db")
+    # app.run(port=8080, host='127.0.0.1')
+
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
