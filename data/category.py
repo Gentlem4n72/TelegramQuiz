@@ -4,7 +4,7 @@ from sqlalchemy import orm
 from .db_session import SqlAlchemyBase
 
 
-class Category(SqlAlchemyBase):
+class Category(SqlAlchemyBase):  # категория вопроса
     __tablename__ = 'categories'
 
     id = sqlalchemy.Column(sqlalchemy.Integer,

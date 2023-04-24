@@ -40,6 +40,7 @@ async def start(update, context):
         db_sess.commit()
         db_sess.close()
 
+    # приветствие с пользователем
     reply_keyboard = ReplyKeyboardMarkup([['/game', '/categories', '/statistic', '/help', '/add']], resize_keyboard=True)
     await update.message.reply_text(
         f"Привет, {update.effective_user.first_name}! Я Кот Семён 😺, и сегодня я буду проводить для вас викторину по Мурманской области.\n\n\n"
@@ -54,7 +55,7 @@ async def start(update, context):
         f"{'-' * 100}\n"
         f"/help - выведу логины тех, кто меня создал, если что-то пойдет не так, пишите им.\n"
         f"{'-' * 100}\n"
-        f"/add - если у вас появится идея для вопроса, вы можете заполнить форму, наши модераторы ее проверят и добавят ваш вопрос.",
+        f"/add - если у вас появится идея для вопроса, вы можете заполнить форму, наши модераторы её проверят и добавят ваш вопрос.",
         reply_markup=reply_keyboard
     )
 
@@ -106,10 +107,10 @@ async def game(update, context):
 
         markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]], resize_keyboard=True)
 
-        if question['attachment'].startswith('data'):
+        if question['attachment'].startswith('data'):  # картинка к вопросу
             photo = question['attachment']
         else:
-
+            # вопрос про достопримечательность - используем yandex.maps api
             map_params = {
                 "ll": question['attachment'],
                 "l": 'sat',
@@ -125,6 +126,7 @@ async def game(update, context):
                                          photo=photo)
         return 'results'
     else:
+        # пользователь решает прекратить викторину
         db_sess = db_session.create_session()
         db_sess.query(Participant).filter(Participant.user_id == str(update.effective_user.id)).first().score += \
             context.user_data['points']
@@ -171,6 +173,7 @@ async def results(update, context):
         return ConversationHandler.END
 
 
+# квиз с вопросами по категориям
 async def categories_game(update, context):
     db_sess = db_session.create_session()
     info = update.message.text
@@ -199,6 +202,7 @@ async def categories_game(update, context):
         try:
             question = random.choice(questions)
         except IndexError:
+            # закончились вопросы из категории
             await update.message.reply_text('У меня закончились вопросы, спасибо за игру!',
                                             reply_markup=ReplyKeyboardMarkup(
                                                 [['/game', '/categories', '/statistic', '/help']]))
@@ -218,10 +222,10 @@ async def categories_game(update, context):
 
         markup = ReplyKeyboardMarkup([answers[0:2], answers[2:]], resize_keyboard=True)
 
-        if question['attachment'].startswith('data'):
+        if question['attachment'].startswith('data'):  # картинка к вопросу
             photo = question['attachment']
         else:
-
+            # вопрос про достопримечательность
             map_params = {
                 "ll": question['attachment'],
                 "l": 'sat',
@@ -251,6 +255,7 @@ async def categories_game(update, context):
         return ConversationHandler.END
 
 
+# выбор категории
 async def categories(update, context):
     db_sess = db_session.create_session()
     context.user_data['categors'] = [str(x) for x in db_sess.query(Category).all()]
@@ -276,6 +281,7 @@ async def cat_fork(update, context):
         return ConversationHandler.END
 
 
+# общий рейтинг
 async def stat(update, context):
     db_sess = db_session.create_session()
     result = db_sess.query(Participant).order_by(Participant.score.desc()).all()
@@ -290,6 +296,7 @@ async def stat(update, context):
     await update.message.reply_text(msg)
 
 
+# тг аккаунты авторов
 async def help_command(update, context):
     await update.message.reply_text("""Вот мои авторы:
 @Gentlem4n_2940 - Александр Десятовский
@@ -297,10 +304,12 @@ async def help_command(update, context):
 @i_am_sashaa - Александра Дермелёва""")
 
 
+# добавление вопроса
 async def add(update, context):
     await update.message.reply_text(f'123')
 
 
+# завершение работы бота
 async def stop(update, context):
     await update.message.reply_text(reply_markup=ReplyKeyboardMarkup([['/game',
                                                                        '/categories',
@@ -315,6 +324,7 @@ def main():
     db_session.global_init("rating/rating.db")
     application = Application.builder().token(BOT_TOKEN).build()
 
+    # квиз со всеми вопросами (вне зависимости от категории)
     normal_game_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('game', game)],
 
@@ -327,6 +337,7 @@ def main():
         fallbacks=[CommandHandler('stop', stop)]
     )
 
+    # квиз по конкретной категории
     categories_game_conv_handler = ConversationHandler(
         entry_points=[CommandHandler('categories', categories)],
 

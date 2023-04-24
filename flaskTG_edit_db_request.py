@@ -8,6 +8,7 @@ from data.form import Form
 app = Flask(__name__)
 
 
+# форма добавления вопроса
 @app.route('/db_mod', methods=['GET', 'POST'])
 def db_mod():
     quest = False

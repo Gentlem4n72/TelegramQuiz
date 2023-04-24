@@ -4,7 +4,7 @@ from .db_session import SqlAlchemyBase
 from sqlalchemy import orm
 
 
-class Form(SqlAlchemyBase):
+class Form(SqlAlchemyBase):  # добавление вопроса
     __tablename__ = 'from'
 
     id = sqlalchemy.Column(sqlalchemy.Integer,
