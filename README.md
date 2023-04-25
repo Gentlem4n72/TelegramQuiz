@@ -8,6 +8,16 @@
 
 [Бот](https://t.me/Kot_Semyon_bot "Кот Семён")
 
+
+## Порядок запуска приложения
+
+Чтобы локально запустить нашу программу, необходимо в консоли выполнить команду:
+```cmd
+pip install -r requirements.txt
+```
+Запустить файл flaskTG_edit_db_request.py, а затем - main.py.
+
+
 ## На что похоже
 
 **ThinkiaBot**:

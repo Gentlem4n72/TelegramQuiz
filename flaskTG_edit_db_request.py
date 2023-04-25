@@ -44,7 +44,8 @@ def db_mod():
 
 if __name__ == '__main__':
     # db_session.global_init("rating/rating.db")
-    # app.run(port=8080, host='127.0.0.1')
 
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(port=8080, host='127.0.0.1')  # локальный запуск
+
+    # port = int(os.environ.get("PORT", 5000))     запуск с помощью хостинга
+    # app.run(host='0.0.0.0', port=port)
